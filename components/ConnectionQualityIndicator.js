@@ -16,7 +16,6 @@ export default function ConnectionQualityIndicator() {
   useEffect(() => {
     setIsClient(true);
     
-    // Now it's safe to use the values from the hook
     if (networkStatus) {
       setConnectionQuality(networkStatus.connectionQuality);
       setDisplayPing(networkStatus.pingTime || networkStatus.averagePing);
@@ -73,7 +72,7 @@ export default function ConnectionQualityIndicator() {
     }
   };
 
-  // Don't render anything during server-side rendering
+  // Won't render anything during server-side rendering
   if (!isClient) {
     return null;
   }

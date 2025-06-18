@@ -9,6 +9,8 @@ DrawSync is a real-time collaborative drawing application built with Next.js tha
 - Shared canvas workspace
 - User presence indicators
 - Session persistence
+- Responsive design for mobile and tablet devices
+- Touch screen support for drawing on mobile devices
 
 ## Getting Started
 

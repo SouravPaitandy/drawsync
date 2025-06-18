@@ -65,7 +65,7 @@ export default function ActivityFeed() {
     };
 
     // Set up observer for user changes
-    // (implementation would depend on how you store previous user state)
+    // (implementation would depend on how we store previous user state)
 
     return () => {
       // Cleanup

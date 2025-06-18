@@ -10,6 +10,8 @@ import {
   ZoomIn,
   ZoomOut,
   Move,
+  Menu,
+  X,
 } from "lucide-react";
 import { 
   useMyPresence, 
@@ -40,7 +42,7 @@ export default function DrawingCanvas({ brushColor, brushSize, tool, viewOnly = 
   const [zoom, setZoom] = useState(1);
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
-  const [activeTool, setActiveTool] = useState(tool); // Drawing tool or pan tool
+  const [activeTool, setActiveTool] = useState(tool);
 
   // Eraser state
   const [lastEraserPosition, setLastEraserPosition] = useState(null);
@@ -51,6 +53,18 @@ export default function DrawingCanvas({ brushColor, brushSize, tool, viewOnly = 
   const broadcast = useBroadcastEvent();
   const others = useOthers();
   const currentUser = useSelf();
+
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
+  const [lastPinchDistance, setLastPinchDistance] = useState(null);
+  const [touchGestureType, setTouchGestureType] = useState(null); // 'draw', 'pan', or 'zoom'
+
+
+  const [toolsVisible, setToolsVisible] = useState(false);
+  
+  // Add the missing function to toggle tools visibility
+  const toggleToolsVisibility = () => {
+    setToolsVisible(prev => !prev);
+  };
   
   // Update cursor position in presence
   const updateCursorPosition = (x, y) => {
@@ -68,7 +82,7 @@ export default function DrawingCanvas({ brushColor, brushSize, tool, viewOnly = 
 
         // Set canvas size to fill the container
         const width = rect.width;
-        // Subtract header height (adjust as needed)
+        // Subtract header height
         const height = window.innerHeight;
 
         setCanvasSize({ width, height });
@@ -108,7 +122,7 @@ export default function DrawingCanvas({ brushColor, brushSize, tool, viewOnly = 
 
   // Listen for drawing events from other collaborators
   useEventListener(({ event, connectionId }) => {
-    // Don't process our own events
+    // Won't process our own events
     if (connectionId === currentUser?.connectionId) return;
 
     switch (event.type) {
@@ -169,7 +183,7 @@ export default function DrawingCanvas({ brushColor, brushSize, tool, viewOnly = 
     ctx.translate(offsetX, offsetY);
     ctx.scale(zoom, zoom);
 
-    // Draw grid (optional)
+    // Draw grid
     drawGrid(ctx);
 
     // Draw all completed strokes
@@ -190,7 +204,7 @@ export default function DrawingCanvas({ brushColor, brushSize, tool, viewOnly = 
 
           // Use a simple approach for curves to avoid pinching
           if (points.length === 2) {
-            // For just two points, draw a straight line
+            // For just two points, it draws a straight line
             ctx.lineTo(points[1].x, points[1].y);
           } else {
             // For more points, use the smooth curve approach
@@ -758,163 +772,144 @@ export default function DrawingCanvas({ brushColor, brushSize, tool, viewOnly = 
     }
   };
 
-  // Export canvas as PNG image
-  const exportCanvas = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+ // Export canvas as PNG image
+const exportCanvas = () => {
+  const canvas = canvasRef.current;
+  if (!canvas) return;
 
-    // Create a temporary canvas for export that includes only the drawing content
-    const exportCanvas = document.createElement("canvas");
-    const ctx = exportCanvas.getContext("2d");
+  // Create a temporary canvas for export that includes only the drawing content
+  const exportCanvas = document.createElement("canvas");
+  const ctx = exportCanvas.getContext("2d");
 
-    // Determine bounds of the content to create a properly sized export
-    let minX = Infinity,
-      minY = Infinity,
-      maxX = -Infinity,
-      maxY = -Infinity;
+  // Determine bounds of the content to create a properly sized export
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
 
-    // Find the bounds of all drawing content
-    drawHistory.forEach((stroke) => {
-      try {
-        if (stroke.tool === "pen") {
-          stroke.points.forEach((point) => {
-            minX = Math.min(minX, point.x);
-            minY = Math.min(minY, point.y);
-            maxX = Math.max(maxX, point.x);
-            maxY = Math.max(maxY, point.y);
-          });
-        } else if (stroke.points && stroke.points[0]) {
-          const { x1, y1, x2, y2 } = stroke.points[0];
-          minX = Math.min(minX, x1, x2);
-          minY = Math.min(minY, y1, y2);
-          maxX = Math.max(maxX, x1, x2);
-          maxY = Math.max(maxY, y1, y2);
-        }
-      } catch (error) {
-        console.error("Error processing stroke for export:", error);
-      }
-    });
-
-    // If no content, use the visible area
-    if (minX === Infinity) {
-      minX = -offsetX / zoom;
-      minY = -offsetY / zoom;
-      maxX = (canvasSize.width - offsetX) / zoom;
-      maxY = (canvasSize.height - offsetY) / zoom;
-    }
-
-    // Add padding
-    const padding = 50;
-    minX -= padding;
-    minY -= padding;
-    maxX += padding;
-    maxY += padding;
-
-    // Set export canvas size
-    const width = maxX - minX;
-    const height = maxY - minY;
-
-    // Ensure we have positive dimensions
-    if (width <= 0 || height <= 0) {
-      alert("Cannot export: The drawing is too small or empty.");
-      return;
-    }
-
-    exportCanvas.width = width;
-    exportCanvas.height = height;
-
-    // Set background color
-    ctx.fillStyle = theme === "dark" ? "black" : "white";
-    ctx.fillRect(0, 0, width, height);
-
-    // Draw content on export canvas
-    ctx.save();
-    ctx.translate(-minX, -minY);
-
-    // Draw all strokes
-    drawHistory.forEach((stroke) => {
-      try {
-        const color = stroke.color;
-        ctx.strokeStyle = color;
-        ctx.lineWidth = stroke.size;
-        ctx.lineCap = "round";
-        ctx.lineJoin = "round";
-
-        if (stroke.tool === "pen") {
-          const points = stroke.points;
-          if (!points || points.length < 2) return;
-
-          ctx.beginPath();
-          ctx.moveTo(points[0].x, points[0].y);
-
-          if (points.length === 2) {
-            // For just two points, draw a straight line
-            ctx.lineTo(points[1].x, points[1].y);
-          } else {
-            // For more points, use the smooth curve approach
-            for (let i = 1; i < points.length - 2; i++) {
-              const xc = (points[i].x + points[i + 1].x) / 2;
-              const yc = (points[i].y + points[i + 1].y) / 2;
-              ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
-            }
-
-            // Handle the last two points separately
-            const lastIdx = points.length - 1;
-            const secondLastIdx = points.length - 2;
-            ctx.quadraticCurveTo(
-              points[secondLastIdx].x,
-              points[secondLastIdx].y,
-              points[lastIdx].x,
-              points[lastIdx].y
-            );
-          }
-
-          ctx.stroke();
-        } else if (stroke.points && stroke.points[0]) {
-          // Handle other shapes
-          const { x1, y1, x2, y2 } = stroke.points[0];
-          const w = x2 - x1;
-          const h = y2 - y1;
-
-          ctx.beginPath();
-          if (stroke.tool === "line") {
-            ctx.moveTo(x1, y1);
-            ctx.lineTo(x2, y2);
-          } else if (stroke.tool === "rect") {
-            ctx.strokeRect(x1, y1, w, h);
-          } else if (stroke.tool === "ellipse") {
-            ctx.ellipse(
-              x1 + w / 2,
-              y1 + h / 2,
-              Math.abs(w / 2),
-              Math.abs(h / 2),
-              0,
-              0,
-              2 * Math.PI
-            );
-          }
-          ctx.stroke();
-        }
-      } catch (error) {
-        console.error("Error drawing stroke during export:", error);
-      }
-    });
-
-    ctx.restore();
-
+  // Find the bounds of all drawing content
+  drawHistory.forEach((stroke) => {
     try {
-      // Create download link
-      const link = document.createElement("a");
-      link.download = `drawsync-${new Date().toISOString().slice(0, 10)}.png`;
-      link.href = exportCanvas.toDataURL("image/png");
-      link.click();
+      if (stroke.tool === "pen" && stroke.points) {
+        stroke.points.forEach((point) => {
+          minX = Math.min(minX, point.x);
+          minY = Math.min(minY, point.y);
+          maxX = Math.max(maxX, point.x);
+          maxY = Math.max(maxY, point.y);
+        });
+      } else if (stroke.points && stroke.points[0]) {
+        const { x1, y1, x2, y2 } = stroke.points[0];
+        minX = Math.min(minX, x1, x2);
+        minY = Math.min(minY, y1, y2);
+        maxX = Math.max(maxX, x1, x2);
+        maxY = Math.max(maxY, y1, y2);
+      }
     } catch (error) {
-      console.error("Error creating download link:", error);
-      alert(
-        "Failed to generate export. The canvas might be too large or contain invalid data."
-      );
+      console.error("Error processing stroke for export:", error);
     }
-  };
+  });
+
+  // If no content, use the visible area
+  if (minX === Infinity) {
+    minX = -offsetX / zoom;
+    minY = -offsetY / zoom;
+    maxX = (canvasSize.width - offsetX) / zoom;
+    maxY = (canvasSize.height - offsetY) / zoom;
+  }
+
+  // Add padding
+  const padding = 50;
+  minX -= padding;
+  minY -= padding;
+  maxX += padding;
+  maxY += padding;
+
+  // Set export canvas size
+  const width = maxX - minX;
+  const height = maxY - minY;
+
+  // Ensure we have positive dimensions
+  if (width <= 0 || height <= 0) {
+    alert("Cannot export: The drawing is too small or empty.");
+    return;
+  }
+
+  // Use device pixel ratio for higher quality exports
+  const dpr = window.devicePixelRatio || 1;
+  exportCanvas.width = width * dpr;
+  exportCanvas.height = height * dpr;
+  exportCanvas.style.width = `${width}px`;
+  exportCanvas.style.height = `${height}px`;
+
+  // Set background color
+  ctx.fillStyle = theme === "dark" ? "black" : "white";
+  ctx.fillRect(0, 0, width * dpr, height * dpr);
+
+  // Apply device pixel ratio scaling
+  ctx.scale(dpr, dpr);
+
+  // Apply transformations for the export view
+  ctx.translate(-minX, -minY);
+
+  // Draw all strokes
+  drawHistory.forEach((stroke) => {
+    try {
+      ctx.strokeStyle = invertColorIfNeeded(stroke.color);
+      ctx.lineWidth = stroke.size;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      
+      if (stroke.tool === "pen" && stroke.points && stroke.points.length > 0) {
+        ctx.beginPath();
+        ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+        
+        for (let i = 1; i < stroke.points.length; i++) {
+          ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+        }
+        
+        ctx.stroke();
+      } else if (stroke.points && stroke.points[0]) {
+        const { x1, y1, x2, y2 } = stroke.points[0];
+        ctx.beginPath();
+        
+        if (stroke.tool === "line") {
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+        } else if (stroke.tool === "rectangle") {
+          ctx.rect(x1, y1, x2 - x1, y2 - y1);
+        } else if (stroke.tool === "ellipse") {
+          const centerX = (x1 + x2) / 2;
+          const centerY = (y1 + y2) / 2;
+          const radiusX = Math.abs(x2 - x1) / 2;
+          const radiusY = Math.abs(y2 - y1) / 2;
+          
+          ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2);
+        }
+        
+        ctx.stroke();
+      }
+    } catch (error) {
+      console.error("Error drawing stroke for export:", error);
+    }
+  });
+
+  try {
+    // Create a download link for the canvas image
+    const dataURL = exportCanvas.toDataURL("image/png");
+    const downloadLink = document.createElement("a");
+    downloadLink.href = dataURL;
+    downloadLink.download = `DrawSync-${new Date().toISOString().slice(0, 10)}.png`;
+    
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+  } catch (error) {
+    console.error("Error creating download link:", error);
+    alert(
+      "Failed to generate export. The canvas might be too large or contain invalid data."
+    );
+  }
+};
 
   // Helper function to invert colors when needed (for dark mode)
   const invertColorIfNeeded = (color) => {
@@ -1006,14 +1001,124 @@ export default function DrawingCanvas({ brushColor, brushSize, tool, viewOnly = 
     };
   }, [isPanning]);
 
+  // Add this to existing useEffect for checking mobile view
+  useEffect(() => {
+    const checkMobile = () => {
+      const isMobile = window.innerWidth < 768 || 
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      setIsMobileDevice(isMobile);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Define a handler for multi-touch gestures like pinch-to-zoom
+  const handleMultiTouch = (e) => {
+    e.preventDefault();
+    
+    // Process two-finger gestures (likely zooming)
+    if (e.touches.length === 2) {
+      const touch1 = e.touches[0];
+      const touch2 = e.touches[1];
+      
+      // Calculate distance between touch points
+      const currentDistance = Math.hypot(
+        touch2.clientX - touch1.clientX,
+        touch2.clientY - touch1.clientY
+      );
+      
+      // Calculate center point between touches for zoom origin
+      const centerX = (touch1.clientX + touch2.clientX) / 2;
+      const centerY = (touch1.clientY + touch2.clientY) / 2;
+      
+      // If we have a previous distance to compare to
+      if (lastPinchDistance !== null) {
+        // Calculate zoom change
+        const scale = currentDistance / lastPinchDistance;
+        
+        // Don't zoom too aggressively - only apply if change is significant
+        if (Math.abs(scale - 1) > 0.02) {
+          const newZoom = Math.max(0.1, Math.min(5, zoom * scale));
+          
+          // Calculate zooming centered on touch midpoint
+          const rect = canvasRef.current.getBoundingClientRect();
+          const mouseX = centerX - rect.left;
+          const mouseY = centerY - rect.top;
+          
+          // Update offsets to zoom centered at pinch position
+          const newOffsetX = mouseX - (mouseX - offsetX) * (newZoom / zoom);
+          const newOffsetY = mouseY - (mouseY - offsetY) * (newZoom / zoom);
+          
+          setZoom(newZoom);
+          setOffsetX(newOffsetX);
+          setOffsetY(newOffsetY);
+          
+          // Set gesture type for preventing other interactions
+          setTouchGestureType('zoom');
+        }
+      }
+      
+      // Update last pinch distance for next comparison
+      setLastPinchDistance(currentDistance);
+    }
+  };
+
+  // Handle touch events with proper touch-to-mouse event conversion
   const touchHandlers = useTouchEvents({
-  onStart: startDrawing,
-  onMove: draw,
-  onEnd: stopDrawing
-});
+    onStart: (e) => {
+      // For multi-touch, we handle differently
+      if (e.touches && e.touches.length > 1) {
+        handleMultiTouch(e);
+        return;
+      }
+      
+      // Otherwise process as a regular drawing/panning touch
+      setTouchGestureType('draw');
+      startDrawing(e);
+    },
+    onMove: (e) => {
+      // Handle multi-touch gestures
+      if (e.touches && e.touches.length > 1) {
+        handleMultiTouch(e);
+        return;
+      }
+      
+      // Skip if we're in the middle of a zoom gesture
+      if (touchGestureType === 'zoom') return;
+      
+      // Continue drawing with this touch
+      draw(e);
+    },
+    onEnd: () => {
+      // Reset pinch zoom tracking
+      setLastPinchDistance(null);
+      setTouchGestureType(null);
+      
+      // End the current drawing operation
+      stopDrawing();
+    }
+  });
 
   // Render remote cursors to show other users' positions
   const RemoteCursors = () => {
+    const [isMobile, setIsMobile] = useState(false);
+    
+    // Check for mobile device on mount and when window resizes
+    useEffect(() => {
+      const checkMobile = () => {
+        setIsMobile(window.innerWidth < 768);
+      };
+      
+      // Initial check
+      checkMobile();
+      
+      // Add resize listener
+      window.addEventListener('resize', checkMobile);
+      return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
     return (
       <>
         {others.map((user) => {
@@ -1040,7 +1145,12 @@ export default function DrawingCanvas({ brushColor, brushSize, tool, viewOnly = 
               }}
             >
               {/* Cursor icon */}
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <svg 
+                width={isMobile ? "18" : "24"} 
+                height={isMobile ? "18" : "24"} 
+                viewBox="0 0 24 24" 
+                fill="none"
+              >
                 <path
                   d="M1 1L10.1329 23L12.8339 13.926L23 10.0199L1 1Z"
                   fill={color}
@@ -1049,13 +1159,13 @@ export default function DrawingCanvas({ brushColor, brushSize, tool, viewOnly = 
                 />
               </svg>
               
-              {/* User label - safely handle the connection ID */}
-              <span 
-                className="mt-1 px-1.5 py-0.5 text-xs font-medium text-white rounded-md whitespace-nowrap absolute left-1/2 -translate-x-1/2 top-full"
-                style={{ backgroundColor: color }}
-              >
-                User {connectionId.slice(0, 4) || 'Unknown'}
-              </span>
+              {/* User label - conditionally render based on screen size */}
+                <span 
+                  className="mt-1 px-1.5 py-0.5 text-xs font-medium text-white rounded-md whitespace-nowrap absolute left-1/2 -translate-x-1/2 top-full"
+                  style={{ backgroundColor: color }}
+                >
+                  User {connectionId.slice(0, 4) || 'Unknown'}
+                </span>
             </div>
           );
         })}
@@ -1063,6 +1173,7 @@ export default function DrawingCanvas({ brushColor, brushSize, tool, viewOnly = 
     );
   };
 
+  // Update canvas event handlers to include the enhanced touch events
   return (
     <div
       ref={containerRef}
@@ -1074,10 +1185,10 @@ export default function DrawingCanvas({ brushColor, brushSize, tool, viewOnly = 
         onMouseMove={draw}
         onMouseUp={stopDrawing}
         onMouseLeave={stopDrawing}
-         onTouchStart={touchHandlers.handleTouchStart}
-  onTouchMove={touchHandlers.handleTouchMove}
-  onTouchEnd={touchHandlers.handleTouchEnd}
-  onTouchCancel={touchHandlers.handleTouchEnd}
+        onTouchStart={touchHandlers.handleTouchStart}
+        onTouchMove={touchHandlers.handleTouchMove}
+        onTouchEnd={touchHandlers.handleTouchEnd}
+        onTouchCancel={touchHandlers.handleTouchCancel}
         onWheel={handleWheel}
         className={`bg-white dark:bg-black w-full h-full ${
           viewOnly 
@@ -1088,23 +1199,148 @@ export default function DrawingCanvas({ brushColor, brushSize, tool, viewOnly = 
             ? "cursor-crosshair"
             : "cursor-crosshair"
         }`}
-        style={{ touchAction: "none" }}
+        style={{ touchAction: "none" }} // This is crucial for preventing default touch behaviors
       />
 
       {/* Remote Cursors */}
       <RemoteCursors />
       
       {/* Eraser size indicator */}
-      {activeTool === "eraser" && <EraserIndicator />}
+        {activeTool === "eraser" && <EraserIndicator />}
+          {!isMobileDevice && (
+            <div className="fixed left-4 top-20 z-50 bg-white/80 dark:bg-black/80 backdrop-blur-sm rounded px-3 py-2 text-xs font-mono shadow-md">
+          Zoom: {(zoom * 100).toFixed(0)}% | X: {Math.round(offsetX)} | Y:{" "}
+          {Math.round(offsetY)}
+            </div>
+          )}
 
-      {/* Current transform indicators */}
-      <div className="fixed left-4 top-20 z-50 bg-white/80 dark:bg-black/80 backdrop-blur-sm rounded px-3 py-2 text-xs font-mono shadow-md">
-        Zoom: {(zoom * 100).toFixed(0)}% | X: {Math.round(offsetX)} | Y:{" "}
-        {Math.round(offsetY)}
-      </div>
+          { isMobileDevice && <>
+          <div 
+            className="fixed right-4 bottom-20 z-50"
+          >
+            <button
+          onClick={toggleToolsVisibility}
+          className="p-3 rounded-full bg-blue-500 text-white shadow-lg hover:bg-blue-600 transition-colors flex items-center justify-center"
+            >
+          {toolsVisible ? <X size={20} /> : <Menu size={20} />}
+            </button>
+          </div>
+          <div 
+            className={`fixed right-3 z-40 flex flex-col justify-center items-center p-2 gap-2 bg-white/90 dark:bg-black/90 backdrop-blur-sm rounded-lg shadow-lg transition-all duration-300 ease-in-out ${
+          toolsVisible 
+            ? `${isMobileDevice ? 'bottom-34' : 'bottom-24'} opacity-100` 
+            : 'bottom-20 opacity-0 pointer-events-none'
+            }`}
+          >
+            <div className="flex flex-col gap-2 items-center">
+          <button
+            onClick={togglePanTool}
+            title={
+          activeTool === "pan"
+            ? "Switch to Draw Mode"
+            : "Switch to Pan Mode (Space)"
+            }
+            className={`p-2 rounded-full ${
+          activeTool === "pan"
+            ? "bg-blue-500 text-white"
+            : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+            } hover:opacity-90 transition-colors`}
+          >
+            <Move size={18} />
+          </button>
 
-      {/* Drawing tools */}
-     <div className="fixed right-4 bottom-1/2 transform translate-y-1/2 z-50 flex flex-col justify-center items-center p-2 gap-2 bg-white/90 dark:bg-black/90 backdrop-blur-sm rounded-lg shadow-lg">
+          <div className="w-full h-px bg-gray-300 dark:bg-gray-600 my-1"></div>
+
+          <button
+            onClick={handleZoomIn}
+            title="Zoom In"
+            className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+          >
+            <ZoomIn size={18} />
+          </button>
+
+          <button
+            onClick={handleZoomOut}
+            title="Zoom Out"
+            className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+          >
+            <ZoomOut size={18} />
+          </button>
+
+          <button
+            onClick={handleResetView}
+            title="Reset View (Ctrl+R)"
+            className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+          >
+            <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+            >
+          <path d="M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0z"></path>
+          <path d="M3 12h18"></path>
+          <path d="M12 3v18"></path>
+            </svg>
+          </button>
+
+          {!viewOnly && <div className="w-full h-px bg-gray-300 dark:bg-gray-600 my-1"></div>}
+
+          {!viewOnly && <button
+            onClick={handleUndo}
+            title="Undo (Ctrl+Z)"
+            className={`p-2 rounded-full ${
+          drawHistory.length === 0 ? "opacity-50" : ""
+            } bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors`}
+            disabled={drawHistory.length === 0}
+          >
+            <Undo size={18} />
+          </button>}
+
+          {!viewOnly && <button
+            onClick={handleRedo}
+            title="Redo (Ctrl+Y)"
+            className={`p-2 rounded-full ${
+          redoStack.length === 0 ? "opacity-50" : ""
+            } bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors`}
+            disabled={redoStack.length === 0}
+          >
+            <Redo size={18} />
+          </button>}
+
+          <div className="w-full h-px bg-gray-300 dark:bg-gray-600 my-1"></div>
+
+          <button
+            onClick={exportCanvas}
+            title="Export as PNG (Ctrl+S)"
+            disabled={drawHistory.length === 0}
+            className="p-2 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
+          >
+            <Download size={18} />
+          </button>
+
+          {!viewOnly && <button
+            onClick={clearCanvas}
+            title="Clear Canvas (Ctrl+Shift+C)"
+            className={`p-2 rounded-full ${
+          drawHistory.length === 0 ? "opacity-50" : ""
+            } bg-red-100 dark:bg-red-900 text-red-500 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-800 transition-colors`}
+            disabled={drawHistory.length === 0}
+          >
+            <Delete size={18} />
+          </button>}
+            </div>
+            </div>
+            </>
+          }
+
+          {/* Drawing tools - adapt for mobile */}
+     {!isMobileDevice && <div className={`fixed right-4 ${isMobileDevice ? 'bottom-24' : 'bottom-1/2 transform translate-y-1/2'} z-50 flex flex-col justify-center items-center p-2 gap-2 bg-white/90 dark:bg-black/90 backdrop-blur-sm rounded-lg shadow-lg`}>
         <button
           onClick={togglePanTool}
           title={
@@ -1206,7 +1442,7 @@ export default function DrawingCanvas({ brushColor, brushSize, tool, viewOnly = 
         >
           <Delete size={18} />
         </button>}
-      </div>
+      </div>}
     </div>
   );
 }

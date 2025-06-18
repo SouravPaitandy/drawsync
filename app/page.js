@@ -29,7 +29,7 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-200 dark:from-gray-900 dark:to-gray-800 flex flex-col items-center justify-center p-4 text-gray-900 dark:text-white">
-      {/* Theme Toggle Button - Top Right */}
+      {/* Theme Toggle Button */}
       <button
         onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
         className="fixed top-4 right-4 z-50 flex items-center p-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-lg shadow-sm text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"

@@ -62,7 +62,7 @@ export default function ConnectionWarning() {
     }
   }, [connectionState, isOnline, isVisible, isClient]);
   
-  // Don't render anything during SSR
+  // Won't render anything during SSR
   if (!isClient) return null;
   
   if (!isVisible) return null;

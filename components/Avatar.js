@@ -13,7 +13,7 @@ export function Avatar({ name, color, isCurrentUser }) {
     }
   }, [name]);
   
-  // Use a consistent default color to prevent hydration mismatch
+  // Used a consistent default color to prevent hydration mismatch
   const avatarColor = color || "#888888";
   
   return (
