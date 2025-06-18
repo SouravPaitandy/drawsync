@@ -1177,7 +1177,7 @@ const exportCanvas = () => {
   return (
     <div
       ref={containerRef}
-      className="w-full h-[100vh] overflow-hidden relative border border-gray-300 dark:border-gray-700 rounded-lg"
+      className="w-full h-[100vh] overflow-hidden relative rounded-lg"
     >
       <canvas
         ref={canvasRef}

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
 import { nanoid } from "nanoid";
+import Image from "next/image";
 
 export default function HomePage() {
   const router = useRouter();
@@ -59,24 +60,20 @@ export default function HomePage() {
 
       <div className="max-w-md w-full bg-white/90 dark:bg-gray-800/90 backdrop-blur-md p-8 rounded-xl shadow-xl">
         <div className="flex flex-col items-center mb-8">
-          <div className="flex mb-4">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              className="w-10 h-10 mr-3 text-blue-600 dark:text-blue-400"
-            >
-              <path
-                fillRule="evenodd"
-                d="M9.53 2.47a.75.75 0 010 1.06L4.81 8.25H15a6.75 6.75 0 010 13.5h-3a.75.75 0 010-1.5h3a5.25 5.25 0 100-10.5H4.81l4.72 4.72a.75.75 0 11-1.06 1.06l-6-6a.75.75 0 010-1.06l6-6a.75.75 0 011.06 0z"
-                clipRule="evenodd"
-              />
-            </svg>
-            <h1 className="text-4xl font-bold pb-4 bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 text-transparent bg-clip-text">
+          <div className="flex items-center justify-center mb-3">
+            <Image
+              src="/drawsync-icon.png"
+              alt="DrawSync Logo"
+              width={42}
+              height={42}
+              className="object-contain"
+              priority
+            />
+            <h1 className="text-4xl pb-2 font-bold ml-3 bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 text-transparent bg-clip-text">
               DrawSync
             </h1>
           </div>
-          <p className="text-lg text-center text-gray-600 dark:text-gray-300">
+          <p className="text-lg text-center text-gray-600 dark:text-gray-300 mt-2 max-w-xs">
             Create, collaborate, and share drawings in real-time
           </p>
         </div>

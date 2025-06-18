@@ -11,6 +11,7 @@ import RoomControls from '@/components/RoomControls';
 import ConnectionQualityIndicator from '@/components/ConnectionQualityIndicator';
 import ConnectionWarning from '@/components/ConnectionWarning';
 import { useParams, useSearchParams } from 'next/navigation';
+import Image from 'next/image';
 
 export default function RoomPage() {
   const params = useParams();
@@ -112,18 +113,13 @@ export default function RoomPage() {
       <main className="bg-gradient-to-b from-gray-50 to-gray-200 text-gray-900 dark:from-gray-900 dark:to-gray-800 dark:text-gray-100 transition-colors duration-300 w-full h-full">
         {/* Logo - Adjust size & position for mobile */}
         <div className={`fixed ${isMobileView ? 'top-3 left-3 scale-90' : 'top-4 left-4'} z-50 flex items-center`}>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            className="w-6 h-6 md:w-7 md:h-7 mr-1 md:mr-2 text-blue-600 dark:text-blue-400"
-          >
-            <path
-              fillRule="evenodd"
-              d="M9.53 2.47a.75.75 0 010 1.06L4.81 8.25H15a6.75 6.75 0 010 13.5h-3a.75.75 0 010-1.5h3a5.25 5.25 0 100-10.5H4.81l4.72 4.72a.75.75 0 11-1.06 1.06l-6-6a.75.75 0 010-1.06l6-6a.75.75 0 011.06 0z"
-              clipRule="evenodd"
-            />
-          </svg>
+          <Image 
+            src="/drawsync-icon.png" 
+            alt="D"
+            width={isMobileView ? 24 : 28} 
+            height={isMobileView ? 24 : 28} 
+            className='mr-1 md:mr-2'
+          />
           <h1 className={`${isMobileView ? 'text-lg' : 'text-2xl'} font-bold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 text-transparent bg-clip-text`}>
             DrawSync
           </h1>

@@ -1,6 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import ThemeProviderWrapper from "./ThemeProvider";
 import "./globals.css";
+import { icons } from "lucide-react";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,7 +33,14 @@ export const metadata = {
     index: true,
     follow: true,
   },
+  icons: {
+  icon: [
+    { url: '/favicon.ico', sizes: 'any' },
+    { url: '/drawsync-icon.png', type: 'image/png' }
+  ]
+}
 };
+
 
 export default function RootLayout({ children }) {
   return (
