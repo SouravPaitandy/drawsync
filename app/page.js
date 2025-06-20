@@ -10,6 +10,7 @@ export default function HomePage() {
   const router = useRouter();
   const { theme, setTheme } = useTheme();
   const [isMobileView, setIsMobileView] = useState(false);
+  const [roomInput, setRoomInput] = useState("");
 
   // Check if viewport is mobile
   useEffect(() => {
@@ -25,6 +26,34 @@ export default function HomePage() {
   // Create a new room and redirect there
   const createNewRoom = () => {
     const roomId = nanoid(10);
+    router.push(`/room/${roomId}`);
+  };
+
+  
+  // Handle room input change
+  const handleRoomInputChange = (e) => {
+    setRoomInput(e.target.value);
+  };
+  
+  // Join existing room
+  const joinRoom = () => {
+    if (!roomInput.trim()) {
+      return; // Don't do anything if input is empty
+    }
+    
+    // Check if the input is a full URL or just a room ID
+    let roomId;
+    try {
+      const url = new URL(roomInput);
+      // Extract room ID from URL path
+      const pathSegments = url.pathname.split('/');
+      roomId = pathSegments[pathSegments.length - 1];
+    } catch {
+      // If not a valid URL, assume it's just a room ID
+      roomId = roomInput.trim();
+    }
+    
+    // Navigate to the room
     router.push(`/room/${roomId}`);
   };
 
@@ -81,7 +110,7 @@ export default function HomePage() {
         <div className="flex flex-col space-y-4">
           <button
             onClick={createNewRoom}
-            className="w-full py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium rounded-lg shadow-md transition-colors flex items-center justify-center"
+            className="cursor-pointer w-full py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium rounded-lg shadow-md transition-colors flex items-center justify-center"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -117,8 +146,14 @@ export default function HomePage() {
                 type="text"
                 placeholder="Paste room link or ID here"
                 className="flex-grow p-3 bg-gray-50 dark:bg-gray-700 outline-none text-gray-900 dark:text-white"
+                value={roomInput}
+                onChange={handleRoomInputChange}
+                onKeyDown={(e) => e.key === 'Enter' && joinRoom()}
               />
-              <button className="px-4 py-3 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors">
+              <button 
+                onClick={joinRoom}
+                className="cursor-pointer px-4 py-3 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
+              >
                 Join
               </button>
             </div>
